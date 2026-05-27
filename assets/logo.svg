@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="sonnenBatterie v2">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFC42E"/>
+      <stop offset="1" stop-color="#F5621E"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <!-- sun rays -->
+  <g stroke="#ffffff" stroke-width="9" stroke-linecap="round">
+    <line x1="128" y1="38" x2="128" y2="58"/>
+    <line x1="128" y1="182" x2="128" y2="202"/>
+    <line x1="46" y1="120" x2="66" y2="120"/>
+    <line x1="190" y1="120" x2="210" y2="120"/>
+    <line x1="70.03" y1="62.03" x2="84.2" y2="76.2"/>
+    <line x1="171.8" y1="163.8" x2="185.97" y2="177.97"/>
+    <line x1="70.03" y1="177.97" x2="84.2" y2="163.8"/>
+    <line x1="171.8" y1="76.2" x2="185.97" y2="62.03"/>
+  </g>
+  <!-- sun disc -->
+  <circle cx="128" cy="120" r="40" fill="#ffffff"/>
+  <!-- energy bolt -->
+  <path d="M134 96 L112 124 L125 124 L120 148 L146 116 L132 116 Z" fill="#F5621E"/>
+</svg>
