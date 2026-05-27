@@ -1,0 +1,133 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "sonnenBatterie einrichten",
+                "description": "Den **Auth-Token** findest du im Dashboard deiner sonnenBatterie unter „Software-Integration“.",
+                "data": {
+                    "host": "IP-Adresse",
+                    "token": "Auth-Token",
+                    "scan_interval": "Aktualisierungsintervall (Sekunden)"
+                }
+            },
+            "reconfigure": {
+                "title": "sonnenBatterie neu konfigurieren",
+                "description": "Den **Auth-Token** findest du im Dashboard deiner sonnenBatterie unter „Software-Integration“.",
+                "data": {
+                    "host": "IP-Adresse",
+                    "token": "Auth-Token",
+                    "scan_interval": "Aktualisierungsintervall (Sekunden)"
+                }
+            },
+            "reauth_confirm": {
+                "title": "sonnenBatterie neu authentifizieren",
+                "description": "Der Auth-Token der sonnenBatterie unter {host} wurde abgelehnt. Bitte einen aktuellen Token aus „Software-Integration“ eingeben.",
+                "data": {
+                    "token": "Auth-Token"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Verbindung zur sonnenBatterie fehlgeschlagen. Bitte IP-Adresse prüfen.",
+            "invalid_auth": "Auth-Token ungültig. Bitte den Token aus „Software-Integration“ prüfen.",
+            "forbidden": "Die Batterie hat die Anfrage abgelehnt (403). Bitte sicherstellen, dass der lokale API-Zugriff unter „Software-Integration“ aktiviert ist.",
+            "unknown": "Unerwarteter Fehler. Siehe Home-Assistant-Protokolle."
+        },
+        "abort": {
+            "already_configured": "Diese sonnenBatterie ist bereits eingerichtet.",
+            "reconfigure_successful": "Neukonfiguration erfolgreich.",
+            "reauth_successful": "Neuauthentifizierung erfolgreich."
+        }
+    },
+    "entity": {
+        "sensor": {
+            "battery_state": {
+                "name": "Status",
+                "state": {
+                    "standby": "Bereitschaft",
+                    "charging": "Lädt",
+                    "discharging": "Entlädt"
+                }
+            },
+            "consumption": { "name": "Verbrauch" },
+            "consumption_avg": { "name": "Verbrauch (Mittel)" },
+            "production": { "name": "Produktion" },
+            "grid_power": { "name": "Netz Ein/Aus" },
+            "grid_export": { "name": "Netzeinspeisung" },
+            "grid_import": { "name": "Netzbezug" },
+            "battery_power": { "name": "Batterie Laden/Entladen" },
+            "battery_charge": { "name": "Batterie Ladeleistung" },
+            "battery_discharge": { "name": "Batterie Entladeleistung" },
+            "soc_user": { "name": "Ladestand" },
+            "soc_real": { "name": "Ladestand (real)" },
+            "remaining_capacity": { "name": "Verbleibende Kapazität" },
+            "system_status": { "name": "Systemstatus" },
+            "operating_mode": {
+                "name": "Betriebsmodus",
+                "state": {
+                    "manual": "Manuell",
+                    "self_consumption": "Eigenverbrauch",
+                    "testing": "Test",
+                    "module_extension": "Modul-Erweiterung",
+                    "time_of_use": "Time-of-Use",
+                    "automatic_optimization": "Automatic - Optimization"
+                }
+            },
+            "frequency": { "name": "Netzfrequenz" },
+            "voltage_ac": { "name": "Netzspannung" },
+            "voltage_battery": { "name": "Batteriespannung" },
+            "backup_buffer": { "name": "Backup-Puffer" },
+            "battery_care": {
+                "name": "Batterieschonung",
+                "state": {
+                    "active": "Aktiv",
+                    "inactive": "Inaktiv"
+                }
+            },
+            "inverter_temperature": { "name": "Wechselrichter-Temperatur" },
+            "pv_power": { "name": "PV-Leistung" },
+            "pv_voltage": { "name": "PV-Spannung" },
+            "pv_current": { "name": "PV-Strom" },
+            "battery_cycles": { "name": "Ladezyklen" },
+            "cell_temperature_max": { "name": "Zelltemperatur max." },
+            "system_dc_voltage": { "name": "Batterie-DC-Spannung" },
+            "module_count": { "name": "Anzahl Batteriemodule" },
+            "inverter_max_power": { "name": "Wechselrichter max. Leistung" },
+            "installed_capacity": { "name": "Installierte Kapazität" },
+            "pm_w_total": { "name": "{meter} Leistung gesamt" },
+            "pm_w_l1": { "name": "{meter} Leistung L1" },
+            "pm_w_l2": { "name": "{meter} Leistung L2" },
+            "pm_w_l3": { "name": "{meter} Leistung L3" },
+            "pm_a_l1": { "name": "{meter} Strom L1" },
+            "pm_a_l2": { "name": "{meter} Strom L2" },
+            "pm_a_l3": { "name": "{meter} Strom L3" },
+            "pm_v_l1_n": { "name": "{meter} Spannung L1-N" },
+            "pm_v_l2_n": { "name": "{meter} Spannung L2-N" },
+            "pm_v_l3_n": { "name": "{meter} Spannung L3-N" },
+            "pm_kwh_imported": { "name": "{meter} Energie bezogen" },
+            "pm_kwh_exported": { "name": "{meter} Energie eingespeist" }
+        },
+        "select": {
+            "operating_mode": {
+                "name": "Betriebsmodus",
+                "state": {
+                    "self_consumption": "Eigenverbrauch",
+                    "automatic_optimization": "Automatic - Optimization",
+                    "module_extension": "Modul-Erweiterung",
+                    "time_of_use": "Time-of-Use",
+                    "manual": "Manuell"
+                }
+            }
+        },
+        "number": {
+            "force_charge": { "name": "Laden erzwingen" },
+            "force_discharge": { "name": "Entladen erzwingen" },
+            "battery_reserve": { "name": "Reserve (Backup-Puffer)" }
+        },
+        "button": {
+            "reset_all": { "name": "Laden/Entladen zurücksetzen" },
+            "reset_charge": { "name": "Zwangsladen zurücksetzen" },
+            "reset_discharge": { "name": "Zwangsentladen zurücksetzen" }
+        }
+    }
+}

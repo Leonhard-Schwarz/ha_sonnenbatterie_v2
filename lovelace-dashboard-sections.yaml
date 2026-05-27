@@ -1,0 +1,101 @@
+# sonnenBatterie – Dashboard (Sections-Layout, aufgeräumt)
+# Einfügen: Einstellungen → Dashboards → Dashboard hinzufügen → neues Dashboard
+#   öffnen → Stift (Bearbeiten) → ⋮ → "Raw-Konfigurationseditor" → Inhalt einfügen.
+# Hinweis: entity_ids werden aus dem Gerätenamen + Entitätsnamen erzeugt; bei
+#   englischer HA-Oberfläche heißen sie z. B. sensor.sonnenbatterie_consumption.
+title: Sonnenbatterie
+views:
+  - title: Übersicht
+    type: sections
+    max_columns: 3
+    sections:
+      # ===== Auf einen Blick =====
+      - type: grid
+        cards:
+          - { type: heading, heading: Auf einen Blick, heading_style: title }
+          - { type: tile, entity: sensor.sonnenbatterie_ladestand, name: Ladestand, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_status, name: Status, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_verbrauch, name: Verbrauch, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_produktion, name: Produktion, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_netz_ein_aus, name: Netz, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_batterie_laden_entladen, name: Batterie, grid_options: { columns: 6, rows: 1 } }
+
+      # ===== Batterie =====
+      - type: grid
+        cards:
+          - { type: heading, heading: Batterie, heading_style: title }
+          - { type: gauge, entity: sensor.sonnenbatterie_ladestand, name: Ladestand, unit: "%", min: 0, max: 100, grid_options: { columns: 6, rows: 3 } }
+          - { type: tile, entity: sensor.sonnenbatterie_verbleibende_kapazitat, name: Rest-Kapazität, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_betriebsmodus, name: Modus, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_ladezyklen, name: Ladezyklen, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_wechselrichter_temperatur, name: WR-Temperatur, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_batterieschonung, name: Schonung, grid_options: { columns: 6, rows: 1 } }
+
+      # ===== Steuerung =====
+      - type: grid
+        cards:
+          - { type: heading, heading: Steuerung, heading_style: title }
+          - type: entities
+            entities:
+              - select.sonnenbatterie_betriebsmodus
+              - number.sonnenbatterie_laden_erzwingen
+              - number.sonnenbatterie_entladen_erzwingen
+              - number.sonnenbatterie_reserve_backup_puffer
+              - button.sonnenbatterie_laden_entladen_zurucksetzen
+
+      # ===== Leistung (Verläufe) =====
+      - type: grid
+        cards:
+          - { type: heading, heading: Leistung, heading_style: title }
+          - type: history-graph
+            title: Verbrauch / Produktion gesamt
+            hours_to_show: 3
+            entities:
+              - sensor.sonnenbatterie_consumption_2_leistung_gesamt
+              - sensor.sonnenbatterie_production_1_leistung_gesamt
+          - type: history-graph
+            title: Netzleistung
+            hours_to_show: 3
+            entities:
+              - { entity: sensor.sonnenbatterie_netzbezug, name: Netzbezug }
+              - { entity: sensor.sonnenbatterie_netzeinspeisung, name: Einspeisung }
+              - { entity: sensor.sonnenbatterie_netz_ein_aus, name: Netz Ein/Aus }
+          - type: history-graph
+            title: Netzfrequenz
+            hours_to_show: 3
+            entities:
+              - sensor.sonnenbatterie_netzfrequenz
+
+      # ===== Phasen-Details =====
+      - type: grid
+        column_span: 2
+        cards:
+          - { type: heading, heading: Phasen-Details, heading_style: title }
+          - type: history-graph
+            title: Verbrauch je Phase (W)
+            hours_to_show: 3
+            entities:
+              - sensor.sonnenbatterie_consumption_2_leistung_l1
+              - sensor.sonnenbatterie_consumption_2_leistung_l2
+              - sensor.sonnenbatterie_consumption_2_leistung_l3
+          - type: history-graph
+            title: Produktion je Phase (W)
+            hours_to_show: 3
+            entities:
+              - sensor.sonnenbatterie_production_1_leistung_l1
+              - sensor.sonnenbatterie_production_1_leistung_l2
+              - sensor.sonnenbatterie_production_1_leistung_l3
+          - type: history-graph
+            title: Strom je Phase (A)
+            hours_to_show: 3
+            entities:
+              - sensor.sonnenbatterie_consumption_2_strom_l1
+              - sensor.sonnenbatterie_consumption_2_strom_l2
+              - sensor.sonnenbatterie_consumption_2_strom_l3
+          - type: history-graph
+            title: Spannung je Phase (V)
+            hours_to_show: 3
+            entities:
+              - sensor.sonnenbatterie_consumption_2_spannung_l1_n
+              - sensor.sonnenbatterie_consumption_2_spannung_l2_n
+              - sensor.sonnenbatterie_consumption_2_spannung_l3_n
