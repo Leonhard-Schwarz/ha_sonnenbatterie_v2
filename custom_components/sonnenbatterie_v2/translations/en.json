@@ -94,6 +94,12 @@
             "module_count": { "name": "Battery module count" },
             "inverter_max_power": { "name": "Inverter max power" },
             "installed_capacity": { "name": "Installed capacity" },
+            "battery_current": { "name": "Battery current" },
+            "cell_temperature_min": { "name": "Min cell temperature" },
+            "cell_voltage_max": { "name": "Max cell voltage" },
+            "cell_voltage_min": { "name": "Min cell voltage" },
+            "full_charge_capacity": { "name": "Full charge capacity" },
+            "state_of_health": { "name": "State of health" },
             "pm_w_total": { "name": "{meter} total power" },
             "pm_w_l1": { "name": "{meter} power L1" },
             "pm_w_l2": { "name": "{meter} power L2" },
@@ -106,6 +112,10 @@
             "pm_v_l3_n": { "name": "{meter} voltage L3-N" },
             "pm_kwh_imported": { "name": "{meter} energy imported" },
             "pm_kwh_exported": { "name": "{meter} energy exported" }
+        },
+        "binary_sensor": {
+            "system_alarm": { "name": "System alarm" },
+            "system_warning": { "name": "System warning" }
         },
         "select": {
             "operating_mode": {

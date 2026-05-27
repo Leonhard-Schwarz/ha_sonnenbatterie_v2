@@ -66,11 +66,13 @@ Or: Settings → **Devices & Services** → **Add Integration** → *sonnenBatte
 ## Features
 
 **Monitoring** (sensors): consumption, production, grid in/out, battery
-charge/discharge, state of charge (user & real), remaining capacity, system &
-operating mode, grid frequency, AC/battery voltage, backup buffer, battery care,
-inverter temperature & PV values, battery cycles, module count, inverter max
-power, plus per-phase power-meter sensors (incl. kWh counters for the Energy
-Dashboard). Advanced/diagnostic sensors are disabled by default.
+charge/discharge, state of charge (user & real), remaining capacity, **state of
+health**, full-charge capacity, system & operating mode, grid frequency,
+AC/battery voltage, **battery current**, backup buffer, battery care, inverter
+temperature & PV values, battery cycles, **cell temperatures & voltages
+(min/max)**, module count, inverter max power, plus per-phase power-meter sensors
+(incl. kWh counters for the Energy Dashboard). Battery **alarm** and **warning**
+are exposed as binary sensors. Advanced/diagnostic sensors are disabled by default.
 
 **Control** (requires write access on the battery): operating mode (select),
 forced charge / forced discharge (sliders), battery reserve (slider) and reset
@@ -84,7 +86,7 @@ IP address — adjust the `sensor.sonnenbatterie_<…>` IDs to match your instal
 
 ## Status
 
-Early release (v0.2.0). Built and tested against a v2-only sonnenBatterie.
+Early release (v0.3.0). Built and tested against a v2-only sonnenBatterie.
 Monitoring and basic control are implemented; Time-of-Use and standby are planned.
 
 ## Credits

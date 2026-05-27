@@ -94,6 +94,12 @@
             "module_count": { "name": "Anzahl Batteriemodule" },
             "inverter_max_power": { "name": "Wechselrichter max. Leistung" },
             "installed_capacity": { "name": "Installierte Kapazität" },
+            "battery_current": { "name": "Batteriestrom" },
+            "cell_temperature_min": { "name": "Zelltemperatur min." },
+            "cell_voltage_max": { "name": "Zellspannung max." },
+            "cell_voltage_min": { "name": "Zellspannung min." },
+            "full_charge_capacity": { "name": "Volle Ladekapazität" },
+            "state_of_health": { "name": "Batteriegesundheit" },
             "pm_w_total": { "name": "{meter} Leistung gesamt" },
             "pm_w_l1": { "name": "{meter} Leistung L1" },
             "pm_w_l2": { "name": "{meter} Leistung L2" },
@@ -106,6 +112,10 @@
             "pm_v_l3_n": { "name": "{meter} Spannung L3-N" },
             "pm_kwh_imported": { "name": "{meter} Energie bezogen" },
             "pm_kwh_exported": { "name": "{meter} Energie eingespeist" }
+        },
+        "binary_sensor": {
+            "system_alarm": { "name": "Systemalarm" },
+            "system_warning": { "name": "Systemwarnung" }
         },
         "select": {
             "operating_mode": {

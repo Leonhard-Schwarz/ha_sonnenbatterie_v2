@@ -112,6 +112,14 @@ class SonnenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except (KeyError, TypeError, ValueError):
             derived["installed_capacity_wh"] = None
 
+        # State of health = measured full-charge capacity vs. nameplate capacity.
+        fcc = data["battery"].get("fullchargecapacitywh")
+        installed = derived["installed_capacity_wh"]
+        if isinstance(fcc, (int, float)) and installed:
+            derived["state_of_health_pct"] = round(fcc / installed * 100, 1)
+        else:
+            derived["state_of_health_pct"] = None
+
         return derived
 
     @property

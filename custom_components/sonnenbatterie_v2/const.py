@@ -14,6 +14,7 @@ DEFAULT_SCAN_INTERVAL: Final = 30
 MIN_SCAN_INTERVAL: Final = 5
 
 PLATFORMS: Final = [
+    Platform.BINARY_SENSOR,
     Platform.SENSOR,
     Platform.SELECT,
     Platform.NUMBER,
