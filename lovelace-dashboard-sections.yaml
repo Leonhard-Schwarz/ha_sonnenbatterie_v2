@@ -30,6 +30,9 @@ views:
           - { type: tile, entity: sensor.sonnenbatterie_ladezyklen, name: Ladezyklen, grid_options: { columns: 6, rows: 1 } }
           - { type: tile, entity: sensor.sonnenbatterie_wechselrichter_temperatur, name: WR-Temperatur, grid_options: { columns: 6, rows: 1 } }
           - { type: tile, entity: sensor.sonnenbatterie_batterieschonung, name: Schonung, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_batteriegesundheit, name: Gesundheit, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: binary_sensor.sonnenbatterie_systemalarm, name: Alarm, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: binary_sensor.sonnenbatterie_systemwarnung, name: Warnung, grid_options: { columns: 6, rows: 1 } }
 
       # ===== Steuerung =====
       - type: grid

@@ -37,6 +37,14 @@ views:
           - { type: tile, entity: sensor.sonnenbatterie_batterie_dc_spannung, name: DC-Spannung, grid_options: { columns: 6, rows: 1 } }
           - { type: tile, entity: sensor.sonnenbatterie_batteriespannung, name: Batteriespannung, grid_options: { columns: 6, rows: 1 } }
           - { type: tile, entity: sensor.sonnenbatterie_zelltemperatur_max, name: Zelltemp. max, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_zelltemperatur_min, name: Zelltemp. min, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_batteriegesundheit, name: Gesundheit, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_volle_ladekapazitat, name: Volle Kapazität, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_batteriestrom, name: Batteriestrom, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_zellspannung_max, name: Zellsp. max, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: sensor.sonnenbatterie_zellspannung_min, name: Zellsp. min, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: binary_sensor.sonnenbatterie_systemalarm, name: Alarm, grid_options: { columns: 6, rows: 1 } }
+          - { type: tile, entity: binary_sensor.sonnenbatterie_systemwarnung, name: Warnung, grid_options: { columns: 6, rows: 1 } }
 
       # ===== Steuerung =====
       - type: grid
