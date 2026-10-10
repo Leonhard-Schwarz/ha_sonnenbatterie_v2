@@ -2,22 +2,33 @@
 from __future__ import annotations
 
 import asyncio
+import time
+from collections.abc import Awaitable
 from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import (
-    SonnenApiError,
-    SonnenAuthError,
-    SonnenConnectionError,
-    SonnenV2Api,
-)
+from .api import SonnenApiError, SonnenAuthError, SonnenV2Api
 from .const import DEFAULT_NAME, DOMAIN, LOGGER
+
+type SonnenConfigEntry = ConfigEntry[SonnenCoordinator]
+
+# /configurations is near-static (module count, inverter size, firmware), so it
+# is re-read only every few minutes instead of on every poll.
+CONFIGURATIONS_MAX_AGE = 600  # seconds
+
+
+def to_int(value: Any) -> int | None:
+    """Parse API values like "3" or 3 to int; None if missing/invalid."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 class SonnenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -29,10 +40,12 @@ class SonnenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     transiently-500 endpoint must not blank out everything.
     """
 
+    config_entry: SonnenConfigEntry
+
     def __init__(
         self,
         hass: HomeAssistant,
-        entry: ConfigEntry,
+        entry: SonnenConfigEntry,
         api: SonnenV2Api,
         scan_interval: int,
     ) -> None:
@@ -44,6 +57,12 @@ class SonnenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=scan_interval),
         )
         self.api = api
+        # Forced charge/discharge setpoints in W. The API can't read them back,
+        # so the last written values live here (restored by the number entities).
+        self.setpoints: dict[str, int] = {"charge": 0, "discharge": 0}
+        self._configurations: dict[str, Any] = {}
+        self._configurations_read_at: float | None = None
+        self._failing: set[str] = set()
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -53,43 +72,66 @@ class SonnenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except SonnenApiError as err:  # incl. connection errors
             raise UpdateFailed(str(err)) from err
 
-        # Best-effort endpoints: gather with return_exceptions so a single 401
-        # doesn't leave the sibling requests as orphaned, never-retrieved tasks.
-        results = await asyncio.gather(
-            self.api.get_latestdata(),
-            self.api.get_inverter(),
-            self.api.get_powermeter(),
-            self.api.get_battery(),
-            self.api.get_configurations(),
-            return_exceptions=True,
+        calls: dict[str, Awaitable[Any]] = {
+            "inverter": self.api.get_inverter(),
+            "powermeter": self.api.get_powermeter(),
+            "battery": self.api.get_battery(),
+        }
+        if (
+            self._configurations_read_at is None
+            or time.monotonic() - self._configurations_read_at > CONFIGURATIONS_MAX_AGE
+        ):
+            calls["configurations"] = self.api.get_configurations()
+
+        # return_exceptions so a single 401 doesn't leave the sibling requests
+        # as orphaned, never-retrieved tasks.
+        results = dict(
+            zip(
+                calls,
+                await asyncio.gather(*calls.values(), return_exceptions=True),
+                strict=True,
+            )
         )
         # If the token was rejected anywhere, trigger reauth exactly once.
-        if any(isinstance(r, SonnenAuthError) for r in results):
+        if any(isinstance(r, SonnenAuthError) for r in results.values()):
             raise ConfigEntryAuthFailed("Auth-Token rejected")
 
-        latestdata, inverter, powermeter, battery, configurations = (
-            self._optional(r) for r in results
-        )
+        if "configurations" in results:
+            configurations = self._optional("configurations", results["configurations"])
+            if configurations is not None:
+                self._configurations = configurations
+                self._configurations_read_at = time.monotonic()
 
         data: dict[str, Any] = {
             "status": status,
-            "latestdata": latestdata or {},
-            "inverter": inverter or {},
-            "powermeter": powermeter or [],
-            "battery": battery or {},
-            "configurations": configurations or {},
+            "inverter": self._optional("inverter", results["inverter"]) or {},
+            "powermeter": self._optional("powermeter", results["powermeter"]) or [],
+            "battery": self._optional("battery", results["battery"]) or {},
+            "configurations": self._configurations,
         }
         data["derived"] = self._derive(data)
         return data
 
-    @staticmethod
-    def _optional(result: Any) -> Any:
-        """Map a gather result: keep data, drop best-effort API errors, re-raise bugs."""
+    def _optional(self, endpoint: str, result: Any) -> Any:
+        """Unwrap a best-effort result: data, or None on API errors; re-raise bugs.
+
+        Failures are logged once when they start and once when they end, not on
+        every poll.
+        """
         if isinstance(result, SonnenApiError):
-            LOGGER.debug("Optional endpoint failed, skipping: %s", result)
+            if endpoint not in self._failing:
+                self._failing.add(endpoint)
+                LOGGER.warning(
+                    "Reading /%s failed, its sensors stay unknown until it recovers: %s",
+                    endpoint,
+                    result,
+                )
             return None
         if isinstance(result, BaseException):
             raise result
+        if endpoint in self._failing:
+            self._failing.discard(endpoint)
+            LOGGER.info("Reading /%s works again", endpoint)
         return result
 
     @staticmethod
@@ -105,16 +147,13 @@ class SonnenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         derived: dict[str, Any] = {"battery_state": state}
 
         cfg = data["configurations"]
-        try:
-            modules = int(cfg["IC_BatteryModules"])
-            per_module = int(cfg["CM_MarketingModuleCapacity"])
-            derived["installed_capacity_wh"] = modules * per_module
-        except (KeyError, TypeError, ValueError):
-            derived["installed_capacity_wh"] = None
+        modules = to_int(cfg.get("IC_BatteryModules"))
+        per_module = to_int(cfg.get("CM_MarketingModuleCapacity"))
+        installed = modules * per_module if modules and per_module else None
+        derived["installed_capacity_wh"] = installed
 
         # State of health = measured full-charge capacity vs. nameplate capacity.
         fcc = data["battery"].get("fullchargecapacitywh")
-        installed = derived["installed_capacity_wh"]
         if isinstance(fcc, (int, float)) and installed:
             derived["state_of_health_pct"] = round(fcc / installed * 100, 1)
         else:
@@ -125,10 +164,7 @@ class SonnenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @property
     def inverter_max_power(self) -> int | None:
         """Max inverter power in W (from configurations), if known."""
-        try:
-            return int(self.data["configurations"]["IC_InverterMaxPower_w"])
-        except (KeyError, TypeError, ValueError):
-            return None
+        return to_int(self.data["configurations"].get("IC_InverterMaxPower_w"))
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -141,3 +177,39 @@ class SonnenCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             sw_version=cfg.get("DE_Software"),
             configuration_url=f"http://{self.api.host}",
         )
+
+    # --- writes -------------------------------------------------------------
+    async def async_set_configuration(self, key: str, value: int | str) -> None:
+        """Write one configuration value, then refresh."""
+        await _write(self.api.set_configuration(key, value))
+        await self.async_request_refresh()
+
+    async def async_set_setpoint(self, direction: str, watts: int) -> None:
+        """Force charging/discharging with `watts`; 0 ends it.
+
+        The battery holds a single setpoint, so forcing one direction ends the
+        other one.
+        """
+        await _write(self.api.set_setpoint(direction, watts))
+        if watts:
+            self.setpoints = dict.fromkeys(self.setpoints, 0)
+        self.setpoints[direction] = watts
+        self.async_update_listeners()
+        await self.async_request_refresh()
+
+
+async def _write(call: Awaitable[Any]) -> None:
+    """Await a write call and turn API errors into user-facing HA errors."""
+    try:
+        await call
+    except SonnenAuthError as err:
+        # A token without write access is valid for reads but gets 401 here.
+        raise HomeAssistantError(
+            translation_domain=DOMAIN, translation_key="write_denied"
+        ) from err
+    except SonnenApiError as err:
+        raise HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key="write_failed",
+            translation_placeholders={"error": str(err)},
+        ) from err

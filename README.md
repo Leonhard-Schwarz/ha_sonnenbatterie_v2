@@ -76,18 +76,42 @@ are exposed as binary sensors. Advanced/diagnostic sensors are disabled by defau
 
 **Control** (requires write access on the battery): operating mode (select),
 forced charge / forced discharge (sliders), battery reserve (slider) and reset
-buttons. *Time-of-Use schedule and standby are not implemented yet.*
+buttons. Without write access the battery answers writes with HTTP 401; the
+integration then shows a hint instead of asking for a new token. The installer
+modes *Testing* and *Battery-Module-Extension* are displayed but can't be
+selected. *Time-of-Use schedule and standby are not implemented yet.*
+
+The API can't read the forced charge/discharge setpoint back, so those sliders
+show the last value written from Home Assistant.
+
+**Diagnostics**: *Settings → Devices & Services → sonnenBatterie → ⋮ → Download
+diagnostics* returns the raw API data (token redacted) — please attach it to
+bug reports.
 
 ## Example dashboard
 
 A ready-to-use Lovelace dashboard (Sections layout) is included as
-`lovelace-dashboard-sections.yaml`. Entity IDs are derived from your configured
-IP address — adjust the `sensor.sonnenbatterie_<…>` IDs to match your install.
+`lovelace-dashboard-sections.yaml` (plus a `-full` variant with every entity).
+Entity IDs are built from the device name and the entity name, so they depend on
+the language Home Assistant used when the entities were created: the dashboards
+use the German IDs (e.g. `sensor.sonnenbatterie_verbrauch`); with English they
+are e.g. `sensor.sonnenbatterie_consumption`.
 
 ## Status
 
-Early release (v0.3.0). Built and tested against a v2-only sonnenBatterie.
+Early release. Built and tested against a v2-only sonnenBatterie.
 Monitoring and basic control are implemented; Time-of-Use and standby are planned.
+
+## Development
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements_test.txt
+ruff check . && pytest
+```
+
+The tests replay real API responses (`tests/fixtures/responses.json`) and also
+guard the entities' unique IDs, so an update never orphans existing entities.
 
 ## Credits
 

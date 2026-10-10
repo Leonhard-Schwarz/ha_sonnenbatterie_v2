@@ -1,0 +1,4 @@
+# Test/lint tooling. The plugin pins the matching Home Assistant version
+# (0.13.366 = HA 2026.9.3).
+pytest-homeassistant-custom-component==0.13.366
+ruff==0.17.0
