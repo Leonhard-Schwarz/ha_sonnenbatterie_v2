@@ -1,0 +1,35 @@
+{
+    "status": {
+        "Apparent_output": 296, "BackupBuffer": "0", "BatteryCharging": true, "BatteryDischarging": false,
+        "Consumption_Avg": 338, "Consumption_W": 336, "Fac": 49.99, "GridFeedIn_W": 40.0, "IsSystemInstalled": 1,
+        "OperatingMode": "2", "Pac_total_W": -271, "Production_W": 645, "RSOC": 21, "RemainingCapacity_Wh": 1289,
+        "SystemStatus": "OnGrid", "Timestamp": "2026-10-10 17:20:14", "USOC": 17, "Uac": 237.0, "Ubat": 52.0,
+        "dischargeNotAllowed": false, "generator_autostart": false
+    },
+    "battery": {
+        "cyclecount": 1965.0, "fullchargecapacitywh": 5734.605, "maximumcelltemperature": 21.85,
+        "maximumcellvoltage": 3.222, "minimumcelltemperature": 20.95, "minimumcellvoltage": 3.218,
+        "systemalarm": 0.0, "systemcurrent": 4.531, "systemdcvoltage": 51.519, "systemwarning": 0.0
+    },
+    "inverter": {
+        "fac": 49.99, "ipv": 0.0, "pac_total": -271.0, "ppv": 0.0, "tmax": 46.38, "uac": 237.31, "upv": 0.0
+    },
+    "powermeter": [
+        {
+            "a_l1": 0.902, "a_l2": 0.932, "a_l3": 0.985, "channel": 1, "deviceid": 0, "direction": "production",
+            "kwh_exported": 0, "kwh_imported": 68752.203125, "name": "WM271",
+            "v_l1_n": 237, "v_l2_n": 234.9, "v_l3_n": 235.2,
+            "w_l1": 205.7, "w_l2": 210.9, "w_l3": 227.6, "w_total": 644.2
+        },
+        {
+            "a_l1": 0.348, "a_l2": 1.175, "a_l3": 0.315, "channel": 2, "deviceid": 1, "direction": "consumption",
+            "kwh_exported": 0, "kwh_imported": 35878.3984375, "name": "WM271",
+            "v_l1_n": 237, "v_l2_n": 234.9, "v_l3_n": 235.2,
+            "w_l1": 54.8, "w_l2": 250.2, "w_l3": 59.4, "w_total": 360.5
+        }
+    ],
+    "configurations": {
+        "CM_MarketingModuleCapacity": "2000", "DE_Software": "1.40.5", "EM_OperatingMode": "2",
+        "EM_USOC": "0", "IC_BatteryModules": "3", "IC_InverterMaxPower_w": "3000"
+    }
+}

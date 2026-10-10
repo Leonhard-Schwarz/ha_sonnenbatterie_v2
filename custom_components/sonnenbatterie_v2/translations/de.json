@@ -123,7 +123,6 @@
                 "state": {
                     "self_consumption": "Eigenverbrauch",
                     "automatic_optimization": "Automatic - Optimization",
-                    "module_extension": "Modul-Erweiterung",
                     "time_of_use": "Time-of-Use",
                     "manual": "Manuell"
                 }
@@ -139,5 +138,9 @@
             "reset_charge": { "name": "Zwangsladen zurücksetzen" },
             "reset_discharge": { "name": "Zwangsentladen zurücksetzen" }
         }
+    },
+    "exceptions": {
+        "write_denied": { "message": "Die sonnenBatterie hat den Schreibzugriff abgelehnt (401). Ist der Schreibzugriff unter „Software-Integration“ aktiviert?" },
+        "write_failed": { "message": "Schreiben auf die sonnenBatterie fehlgeschlagen: {error}" }
     }
 }

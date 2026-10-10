@@ -123,7 +123,6 @@
                 "state": {
                     "self_consumption": "Automatic - Self-Consumption",
                     "automatic_optimization": "Automatic - Optimization",
-                    "module_extension": "Battery-Module-Extension",
                     "time_of_use": "Time-Of-Use",
                     "manual": "Manual"
                 }
@@ -139,5 +138,9 @@
             "reset_charge": { "name": "Reset forced charge" },
             "reset_discharge": { "name": "Reset forced discharge" }
         }
+    },
+    "exceptions": {
+        "write_denied": { "message": "The sonnenBatterie refused the write (401). Make sure write access is enabled under “Software Integration”." },
+        "write_failed": { "message": "Writing to the sonnenBatterie failed: {error}" }
     }
 }

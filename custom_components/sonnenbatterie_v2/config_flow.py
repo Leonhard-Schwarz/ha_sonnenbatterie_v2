@@ -8,21 +8,25 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_HOST, CONF_SCAN_INTERVAL, CONF_TOKEN
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-
-from .api import (
-    SonnenAuthError,
-    SonnenConnectionError,
-    SonnenForbiddenError,
-    SonnenV2Api,
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
+
+from .api import SonnenApiError, SonnenAuthError, SonnenForbiddenError, SonnenV2Api
 from .const import DEFAULT_SCAN_INTERVAL, DOMAIN, LOGGER, MIN_SCAN_INTERVAL
 
+_TOKEN_SELECTOR = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
-def _schema(defaults: dict[str, Any]) -> vol.Schema:
+
+def _schema(defaults: Mapping[str, Any]) -> vol.Schema:
     return vol.Schema(
         {
             vol.Required(CONF_HOST, default=defaults.get(CONF_HOST, "")): str,
-            vol.Required(CONF_TOKEN, default=defaults.get(CONF_TOKEN, "")): str,
+            vol.Required(
+                CONF_TOKEN, default=defaults.get(CONF_TOKEN, "")
+            ): _TOKEN_SELECTOR,
             vol.Optional(
                 CONF_SCAN_INTERVAL,
                 default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
@@ -31,9 +35,10 @@ def _schema(defaults: dict[str, Any]) -> vol.Schema:
     )
 
 
-def _reauth_schema() -> vol.Schema:
-    """Reauth only needs a fresh token; the host stays the same."""
-    return vol.Schema({vol.Required(CONF_TOKEN): str})
+def _normalize_host(host: str) -> str:
+    """Accept "192.168.1.5" as well as pasted URLs like "http://192.168.1.5/"."""
+    host = host.strip().removeprefix("http://").removeprefix("https://")
+    return host.rstrip("/")
 
 
 class SonnenConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -41,38 +46,34 @@ class SonnenConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
-    async def _validate(self, user_input: dict[str, Any]) -> None:
-        """Raise SonnenConnectionError / SonnenAuthError on failure."""
+    async def _async_validate(self, data: Mapping[str, Any]) -> dict[str, str]:
+        """Try to talk to the battery; return form errors (empty on success)."""
         api = SonnenV2Api(
-            user_input[CONF_HOST],
-            user_input[CONF_TOKEN],
-            async_get_clientsession(self.hass),
+            data[CONF_HOST], data[CONF_TOKEN], async_get_clientsession(self.hass)
         )
-        await api.get_status()          # reachability (no token required)
-        await api.get_configurations()  # validates the Auth-Token
-
-    def _errors_for(self, err: Exception) -> dict[str, str]:
-        if isinstance(err, SonnenAuthError):
+        try:
+            await api.get_status()  # reachability (no token required)
+            await api.get_configurations()  # validates the Auth-Token
+        except SonnenAuthError:
             return {"base": "invalid_auth"}
-        if isinstance(err, SonnenForbiddenError):
+        except SonnenForbiddenError:
             return {"base": "forbidden"}
-        if isinstance(err, SonnenConnectionError):
+        except SonnenApiError:  # unreachable, or not a v2 battery at this address
             return {"base": "cannot_connect"}
-        LOGGER.exception("Unexpected error validating sonnenBatterie", exc_info=err)
-        return {"base": "unknown"}
+        except Exception:  # noqa: BLE001
+            LOGGER.exception("Unexpected error validating sonnenBatterie")
+            return {"base": "unknown"}
+        return {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                await self._validate(user_input)
-            except Exception as err:  # noqa: BLE001
-                errors = self._errors_for(err)
-            else:
-                await self.async_set_unique_id(user_input[CONF_HOST])
-                self._abort_if_unique_id_configured()
+            user_input[CONF_HOST] = _normalize_host(user_input[CONF_HOST])
+            await self.async_set_unique_id(user_input[CONF_HOST])
+            self._abort_if_unique_id_configured()
+            if not (errors := await self._async_validate(user_input)):
                 return self.async_create_entry(
                     title=f"sonnenBatterie ({user_input[CONF_HOST]})",
                     data=user_input,
@@ -87,12 +88,16 @@ class SonnenConfigFlow(ConfigFlow, domain=DOMAIN):
         entry = self._get_reconfigure_entry()
         errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                await self._validate(user_input)
-            except Exception as err:  # noqa: BLE001
-                errors = self._errors_for(err)
-            else:
-                return self.async_update_reload_and_abort(entry, data_updates=user_input)
+            host = user_input[CONF_HOST] = _normalize_host(user_input[CONF_HOST])
+            # The host is the entry's unique id: keep it in sync, and don't let
+            # this entry take over an address another entry already uses.
+            if host != entry.unique_id:
+                await self.async_set_unique_id(host)
+                self._abort_if_unique_id_configured()
+            if not (errors := await self._async_validate(user_input)):
+                return self.async_update_reload_and_abort(
+                    entry, unique_id=host, data_updates=user_input
+                )
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=_schema({**entry.data, **(user_input or {})}),
@@ -108,18 +113,15 @@ class SonnenConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        """Reauth only needs a fresh token; the host stays the same."""
         entry = self._get_reauth_entry()
         errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                await self._validate({**entry.data, **user_input})
-            except Exception as err:  # noqa: BLE001
-                errors = self._errors_for(err)
-            else:
+            if not (errors := await self._async_validate({**entry.data, **user_input})):
                 return self.async_update_reload_and_abort(entry, data_updates=user_input)
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=_reauth_schema(),
+            data_schema=vol.Schema({vol.Required(CONF_TOKEN): _TOKEN_SELECTOR}),
             description_placeholders={CONF_HOST: entry.data[CONF_HOST]},
             errors=errors,
         )

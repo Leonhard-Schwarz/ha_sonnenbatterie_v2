@@ -21,13 +21,12 @@ from homeassistant.const import (
     UnitOfPower,
     UnitOfTemperature,
 )
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from . import SonnenConfigEntry
-from .const import OPERATING_MODES_REVERSE
-from .coordinator import SonnenCoordinator
+from .const import OPERATING_MODES
+from .coordinator import SonnenConfigEntry, to_int
 from .entity import SonnenEntity
 
 
@@ -59,11 +58,10 @@ def _neg_abs(value: Any) -> StateType:
     return abs(value) if value < 0 else 0
 
 
-def _to_int(value: Any) -> int | None:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
+def _battery_care(discharge_not_allowed: Any) -> StateType:
+    if discharge_not_allowed is None:
         return None
+    return "active" if discharge_not_allowed else "inactive"
 
 
 def _remaining_wh(d: dict[str, Any]) -> StateType:
@@ -124,7 +122,7 @@ SENSORS: tuple[SonnenSensorEntityDescription, ...] = (
     SonnenSensorEntityDescription(
         key="grid_export",
         translation_key="grid_export",
-        icon="mdi:transmission-tower-import",
+        icon="mdi:transmission-tower-export",
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.WATT,
@@ -134,7 +132,7 @@ SENSORS: tuple[SonnenSensorEntityDescription, ...] = (
     SonnenSensorEntityDescription(
         key="grid_import",
         translation_key="grid_import",
-        icon="mdi:transmission-tower-export",
+        icon="mdi:transmission-tower-import",
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPower.WATT,
@@ -206,10 +204,8 @@ SENSORS: tuple[SonnenSensorEntityDescription, ...] = (
         translation_key="operating_mode",
         icon="mdi:state-machine",
         device_class=SensorDeviceClass.ENUM,
-        options=["manual", "self_consumption", "testing", "module_extension", "time_of_use", "automatic_optimization"],
-        value_fn=lambda d: OPERATING_MODES_REVERSE.get(
-            str(d["status"].get("OperatingMode"))
-        ),
+        options=list(OPERATING_MODES.values()),
+        value_fn=lambda d: OPERATING_MODES.get(str(d["status"].get("OperatingMode"))),
     ),
     SonnenSensorEntityDescription(
         key="frequency",
@@ -248,7 +244,7 @@ SENSORS: tuple[SonnenSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda d: _to_int(d["status"].get("BackupBuffer")),
+        value_fn=lambda d: to_int(d["status"].get("BackupBuffer")),
     ),
     SonnenSensorEntityDescription(
         key="battery_care",
@@ -257,7 +253,7 @@ SENSORS: tuple[SonnenSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENUM,
         options=["active", "inactive"],
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda d: "active" if d["status"].get("dischargeNotAllowed") else "inactive",
+        value_fn=lambda d: _battery_care(d["status"].get("dischargeNotAllowed")),
     ),
     # --- inverter -----------------------------------------------------------
     SonnenSensorEntityDescription(
@@ -381,7 +377,7 @@ SENSORS: tuple[SonnenSensorEntityDescription, ...] = (
         icon="mdi:battery",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
-        value_fn=lambda d: _to_int(d["configurations"].get("IC_BatteryModules")),
+        value_fn=lambda d: to_int(d["configurations"].get("IC_BatteryModules")),
     ),
     SonnenSensorEntityDescription(
         key="inverter_max_power",
@@ -389,7 +385,7 @@ SENSORS: tuple[SonnenSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.WATT,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda d: _to_int(d["configurations"].get("IC_InverterMaxPower_w")),
+        value_fn=lambda d: to_int(d["configurations"].get("IC_InverterMaxPower_w")),
     ),
     SonnenSensorEntityDescription(
         key="installed_capacity",
@@ -440,6 +436,7 @@ _PM_FIELDS: dict[str, tuple[SensorDeviceClass, str]] = {
     "v_l3_n": (SensorDeviceClass.VOLTAGE, UnitOfElectricPotential.VOLT),
 }
 
+
 def _pm_value(d: dict[str, Any], deviceid: Any, channel: Any, field: str) -> Any:
     """Look up a meter value by its (deviceid, channel) identity.
 
@@ -452,79 +449,99 @@ def _pm_value(d: dict[str, Any], deviceid: Any, channel: Any, field: str) -> Any
     return None
 
 
-def _powermeter_descriptions(
-    coordinator: SonnenCoordinator,
+def _meter_key(index: int, meter: dict[str, Any]) -> str:
+    """Stable entity-key prefix of a meter (part of its entities' unique ids).
+
+    Uses (deviceid, channel); falls back to the list position only if the meter
+    exposes no ids at all.
+    """
+    deviceid = meter.get("deviceid")
+    channel = meter.get("channel")
+    direction = str(meter.get("direction", "meter"))
+    key_device = deviceid if deviceid is not None else index
+    key_channel = channel if channel is not None else index
+    return f"meter_{direction}_{key_device}_{key_channel}".lower()
+
+
+def _meter_descriptions(
+    index: int, meter: dict[str, Any]
 ) -> list[SonnenSensorEntityDescription]:
-    """Build per-meter sensor descriptions.
+    """Build the sensor descriptions of one power meter.
 
     Names are localized via a shared per-field translation_key ("pm_<field>")
     plus a {meter} placeholder; see translations/*.json.
     """
-    descriptions: list[SonnenSensorEntityDescription] = []
-    meters = coordinator.data.get("powermeter", []) if coordinator.data else []
-    for index, meter in enumerate(meters):
-        deviceid = meter.get("deviceid")
-        channel = meter.get("channel")
-        direction = str(meter.get("direction", "meter"))
-        # Stable identity for the entity key; fall back to position only if the
-        # meter exposes no ids at all.
-        key_device = deviceid if deviceid is not None else index
-        key_channel = channel if channel is not None else index
-        prefix = f"meter_{direction}_{key_device}_{key_channel}".lower()
-        placeholders = {"meter": f"{direction.capitalize()} {key_channel}"}
+    prefix = _meter_key(index, meter)
+    deviceid = meter.get("deviceid")
+    channel = meter.get("channel")
+    direction = str(meter.get("direction", "meter"))
+    placeholders = {
+        "meter": f"{direction.capitalize()} {channel if channel is not None else index}"
+    }
 
-        for field, (device_class, unit) in _PM_FIELDS.items():
-            descriptions.append(
-                SonnenSensorEntityDescription(
-                    key=f"{prefix}_{field}",
-                    translation_key=f"pm_{field}",
-                    translation_placeholders=placeholders,
-                    device_class=device_class,
-                    state_class=SensorStateClass.MEASUREMENT,
-                    native_unit_of_measurement=unit,
-                    suggested_display_precision=2,
-                    entity_category=EntityCategory.DIAGNOSTIC,
-                    entity_registry_enabled_default=False,
-                    value_fn=lambda d, _id=deviceid, _ch=channel, _f=field: _round(
-                        _pm_value(d, _id, _ch, _f)
-                    ),
-                )
+    descriptions: list[SonnenSensorEntityDescription] = []
+    for field, (device_class, unit) in _PM_FIELDS.items():
+        descriptions.append(
+            SonnenSensorEntityDescription(
+                key=f"{prefix}_{field}",
+                translation_key=f"pm_{field}",
+                translation_placeholders=placeholders,
+                device_class=device_class,
+                state_class=SensorStateClass.MEASUREMENT,
+                native_unit_of_measurement=unit,
+                suggested_display_precision=2,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                entity_registry_enabled_default=False,
+                value_fn=lambda d, _id=deviceid, _ch=channel, _f=field: _round(
+                    _pm_value(d, _id, _ch, _f)
+                ),
             )
-        for field in ("kwh_imported", "kwh_exported"):
-            descriptions.append(
-                SonnenSensorEntityDescription(
-                    key=f"{prefix}_{field}",
-                    translation_key=f"pm_{field}",
-                    translation_placeholders=placeholders,
-                    device_class=SensorDeviceClass.ENERGY,
-                    state_class=SensorStateClass.TOTAL_INCREASING,
-                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    suggested_display_precision=3,
-                    entity_category=EntityCategory.DIAGNOSTIC,
-                    entity_registry_enabled_default=False,
-                    value_fn=lambda d, _id=deviceid, _ch=channel, _f=field: _pm_value(
-                        d, _id, _ch, _f
-                    ),
-                )
+        )
+    for field in ("kwh_imported", "kwh_exported"):
+        descriptions.append(
+            SonnenSensorEntityDescription(
+                key=f"{prefix}_{field}",
+                translation_key=f"pm_{field}",
+                translation_placeholders=placeholders,
+                device_class=SensorDeviceClass.ENERGY,
+                state_class=SensorStateClass.TOTAL_INCREASING,
+                native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                suggested_display_precision=3,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                entity_registry_enabled_default=False,
+                value_fn=lambda d, _id=deviceid, _ch=channel, _f=field: _pm_value(
+                    d, _id, _ch, _f
+                ),
             )
+        )
     return descriptions
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SonnenConfigEntry,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up sonnenBatterie sensors."""
     coordinator = entry.runtime_data
-    entities: list[SonnenSensor] = [
-        SonnenSensor(coordinator, description) for description in SENSORS
-    ]
-    entities += [
-        SonnenSensor(coordinator, description)
-        for description in _powermeter_descriptions(coordinator)
-    ]
-    async_add_entities(entities)
+    async_add_entities(SonnenSensor(coordinator, description) for description in SENSORS)
+
+    # /powermeter is best-effort, so a meter may only show up on a later poll
+    # (e.g. if the endpoint hiccuped at startup): add each meter once it's seen.
+    known_meters: set[str] = set()
+
+    @callback
+    def _add_new_meters() -> None:
+        new: list[SonnenSensor] = []
+        for index, meter in enumerate(coordinator.data["powermeter"]):
+            if (key := _meter_key(index, meter)) not in known_meters:
+                known_meters.add(key)
+                new += (SonnenSensor(coordinator, d) for d in _meter_descriptions(index, meter))
+        if new:
+            async_add_entities(new)
+
+    _add_new_meters()
+    entry.async_on_unload(coordinator.async_add_listener(_add_new_meters))
 
 
 class SonnenSensor(SonnenEntity, SensorEntity):

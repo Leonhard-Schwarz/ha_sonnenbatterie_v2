@@ -1,0 +1,16 @@
+# Development tooling only (tests + lint); Home Assistant ignores this file.
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501"]  # line length is left to the formatter
+
+[tool.ruff.lint.isort]
+known-first-party = ["custom_components"]

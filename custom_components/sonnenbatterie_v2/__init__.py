@@ -1,16 +1,13 @@
 """The sonnenBatterie (v2 API) integration."""
 from __future__ import annotations
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_SCAN_INTERVAL, CONF_TOKEN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import SonnenV2Api
 from .const import DEFAULT_SCAN_INTERVAL, PLATFORMS
-from .coordinator import SonnenCoordinator
-
-type SonnenConfigEntry = ConfigEntry[SonnenCoordinator]
+from .coordinator import SonnenConfigEntry, SonnenCoordinator
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SonnenConfigEntry) -> bool:
@@ -28,13 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SonnenConfigEntry) -> bo
     entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    entry.async_on_unload(entry.add_update_listener(_async_reload))
     return True
-
-
-async def _async_reload(hass: HomeAssistant, entry: SonnenConfigEntry) -> None:
-    """Reload the entry when its options/data change (e.g. after reconfigure)."""
-    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: SonnenConfigEntry) -> bool:
